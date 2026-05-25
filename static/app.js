@@ -15,6 +15,18 @@ var els = {
   keyboardSoundVolume: document.querySelector("#keyboardSoundVolume"),
   keyboardSoundVolumeLabel: document.querySelector("#keyboardSoundVolumeLabel"),
   keyboardSoundVolumeValue: document.querySelector("#keyboardSoundVolumeValue"),
+  translationSettingsLabel: document.querySelector("#translationSettingsLabel"),
+  translateSource: document.querySelector("#translateSource"),
+  translateSourceLabel: document.querySelector("#translateSourceLabel"),
+  translateTarget: document.querySelector("#translateTarget"),
+  translateTargetLabel: document.querySelector("#translateTargetLabel"),
+  translateCase: document.querySelector("#translateCase"),
+  translateCaseLabel: document.querySelector("#translateCaseLabel"),
+  translateProtectTokens: document.querySelector("#translateProtectTokens"),
+  translateProtectTokensLabel: document.querySelector("#translateProtectTokensLabel"),
+  translateShortcutLabel: document.querySelector("#translateShortcutLabel"),
+  translateShortcutButton: document.querySelector("#translateShortcutButton"),
+  translateButton: document.querySelector("#translateButton"),
   themeToggle: document.querySelector("#themeToggle"),
   logout: document.querySelector("#logout"),
   publish: document.querySelector("#publish"),
@@ -25,11 +37,19 @@ var els = {
 };
 
 var PREF_KEY = "wxw-diary-preferences";
+var TRANSLATION_PREF_KEY = "wxw-translation-preferences";
 var defaultPrefs = {
   visibility: "unlisted",
   titleMode: "heading",
   language: "en",
   theme: "light"
+};
+var defaultTranslationPrefs = {
+  source: "auto",
+  target: "en",
+  caseMode: "normal",
+  protectTokens: true,
+  shortcut: "Ctrl+Alt+T"
 };
 
 var i18n = {
@@ -41,6 +61,18 @@ var i18n = {
     language: "Language",
     keyboardSound: "Keyboard sound",
     soundVolume: "Sound volume",
+    translation: "Translation",
+    translateFrom: "From",
+    translateTo: "To",
+    translateCase: "Result case",
+    translate: "Translate",
+    translating: "Translating",
+    translated: "Translation applied.",
+    translateFailed: "Could not translate.",
+    noTextToTranslate: "Write something before translating.",
+    protectTokens: "Protect mentions, hashtags, links, and :emoji:.",
+    shortcut: "Shortcut",
+    pressShortcut: "Press shortcut",
     titlePlaceholder: "Title",
     bodyPlaceholder: "Start here...",
     localDraft: "Local draft",
@@ -72,6 +104,17 @@ var i18n = {
       ios: "iOS",
       "logitech-g915-tkl-brown": "Logitech G915 TKL Brown"
     },
+    translationLanguages: {
+      auto: "Auto",
+      en: "English",
+      es: "Spanish",
+      zh: "Chinese"
+    },
+    caseModes: {
+      normal: "Normal",
+      upper: "UPPERCASE",
+      lower: "lowercase"
+    },
     titleModeHelp: "Title in post publishes it as the first line. Content warning uses Mastodon's CW field and hides the body behind it."
   },
   es: {
@@ -82,6 +125,18 @@ var i18n = {
     language: "Idioma",
     keyboardSound: "Sonido de teclado",
     soundVolume: "Volumen del sonido",
+    translation: "Traducción",
+    translateFrom: "Origen",
+    translateTo: "Destino",
+    translateCase: "Formato",
+    translate: "Traducir",
+    translating: "Traduciendo",
+    translated: "Traducción aplicada.",
+    translateFailed: "No se pudo traducir.",
+    noTextToTranslate: "Escribe algo antes de traducir.",
+    protectTokens: "Proteger menciones, hashtags, links y :emoji:.",
+    shortcut: "Atajo",
+    pressShortcut: "Presiona el atajo",
     titlePlaceholder: "Título",
     bodyPlaceholder: "Empieza aquí...",
     localDraft: "Borrador local",
@@ -113,6 +168,17 @@ var i18n = {
       ios: "iOS",
       "logitech-g915-tkl-brown": "Logitech G915 TKL Brown"
     },
+    translationLanguages: {
+      auto: "Auto",
+      en: "Inglés",
+      es: "Español",
+      zh: "Chino"
+    },
+    caseModes: {
+      normal: "Normal",
+      upper: "MAYÚSCULAS",
+      lower: "minúsculas"
+    },
     titleModeHelp: "Título en el post lo publica como primera línea. Aviso CW usa el campo Content Warning de Mastodon y oculta el cuerpo detrás."
   },
   zh: {
@@ -123,6 +189,18 @@ var i18n = {
     language: "语言",
     keyboardSound: "键盘声音",
     soundVolume: "声音音量",
+    translation: "翻译",
+    translateFrom: "源语言",
+    translateTo: "目标语言",
+    translateCase: "大小写",
+    translate: "翻译",
+    translating: "翻译中",
+    translated: "已应用翻译。",
+    translateFailed: "无法翻译。",
+    noTextToTranslate: "请先写一些内容再翻译。",
+    protectTokens: "保护提及、标签、链接和 :emoji:。",
+    shortcut: "快捷键",
+    pressShortcut: "按下快捷键",
     titlePlaceholder: "标题",
     bodyPlaceholder: "从这里开始...",
     localDraft: "本地草稿",
@@ -154,6 +232,17 @@ var i18n = {
       ios: "iOS",
       "logitech-g915-tkl-brown": "Logitech G915 TKL Brown"
     },
+    translationLanguages: {
+      auto: "自动",
+      en: "英语",
+      es: "西班牙语",
+      zh: "中文"
+    },
+    caseModes: {
+      normal: "正常",
+      upper: "大写",
+      lower: "小写"
+    },
     titleModeHelp: "标题写入帖文会把它放在第一行。CW 会使用 Mastodon 的内容警告字段并隐藏正文。"
   }
 };
@@ -162,7 +251,9 @@ var csrf = "";
 var maxCharacters = 20000;
 var draftKey = "wxw-diary-draft";
 var prefs = loadPreferences();
+var translationPrefs = loadTranslationPreferences();
 var toastTimer = 0;
+var waitingForShortcut = false;
 
 function optionIsAllowed(value, allowed, fallback) {
   return allowed.indexOf(value) >= 0 ? value : fallback;
@@ -220,8 +311,40 @@ function loadPreferences() {
   };
 }
 
+function loadTranslationPreferences() {
+  var raw = safeGet(TRANSLATION_PREF_KEY);
+  var parsed;
+  if (!raw) {
+    return {
+      source: defaultTranslationPrefs.source,
+      target: defaultTranslationPrefs.target,
+      caseMode: defaultTranslationPrefs.caseMode,
+      protectTokens: defaultTranslationPrefs.protectTokens,
+      shortcut: defaultTranslationPrefs.shortcut
+    };
+  }
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    parsed = {};
+  }
+
+  return {
+    source: optionIsAllowed(parsed.source, ["auto", "en", "es", "zh"], defaultTranslationPrefs.source),
+    target: optionIsAllowed(parsed.target, ["en", "es", "zh"], defaultTranslationPrefs.target),
+    caseMode: optionIsAllowed(parsed.caseMode, ["normal", "upper", "lower"], defaultTranslationPrefs.caseMode),
+    protectTokens: typeof parsed.protectTokens === "boolean" ? parsed.protectTokens : defaultTranslationPrefs.protectTokens,
+    shortcut: parsed.shortcut || defaultTranslationPrefs.shortcut
+  };
+}
+
 function savePreferences() {
   safeSet(PREF_KEY, JSON.stringify(prefs));
+}
+
+function saveTranslationPreferences() {
+  safeSet(TRANSLATION_PREF_KEY, JSON.stringify(translationPrefs));
 }
 
 function text(key) {
@@ -262,6 +385,64 @@ function fillOptions(select, labels) {
   }
 }
 
+function shortcutKeyName(event) {
+  if (!event.key) return "";
+  if (event.key === " ") return "Space";
+  if (event.key.length === 1) return event.key.toUpperCase();
+  return event.key;
+}
+
+function shortcutFromEvent(event) {
+  var key = shortcutKeyName(event);
+  var parts = [];
+  if (!key || ["Shift", "Control", "Alt", "Meta", "CapsLock"].indexOf(key) >= 0) return "";
+  if (!event.ctrlKey && !event.altKey && !event.metaKey) return "";
+  if (event.ctrlKey) parts.push("Ctrl");
+  if (event.altKey) parts.push("Alt");
+  if (event.shiftKey) parts.push("Shift");
+  if (event.metaKey) parts.push("Meta");
+  parts.push(key);
+  return parts.join("+");
+}
+
+function parseShortcut(shortcut) {
+  var parts = String(shortcut || "").split("+");
+  var config = { ctrl: false, alt: false, shift: false, meta: false, key: "" };
+  var i;
+  var part;
+  for (i = 0; i < parts.length; i += 1) {
+    part = parts[i].trim();
+    if (!part) continue;
+    if (/^ctrl$/i.test(part) || /^control$/i.test(part)) config.ctrl = true;
+    else if (/^alt$/i.test(part) || /^option$/i.test(part)) config.alt = true;
+    else if (/^shift$/i.test(part)) config.shift = true;
+    else if (/^meta$/i.test(part) || /^cmd$/i.test(part) || /^command$/i.test(part)) config.meta = true;
+    else config.key = part.length === 1 ? part.toUpperCase() : part;
+  }
+  return config;
+}
+
+function eventMatchesShortcut(event, shortcut) {
+  var config = parseShortcut(shortcut);
+  var key = shortcutKeyName(event);
+  if (!config.key) return false;
+  return Boolean(event.ctrlKey) === config.ctrl &&
+    Boolean(event.altKey) === config.alt &&
+    Boolean(event.shiftKey) === config.shift &&
+    Boolean(event.metaKey) === config.meta &&
+    key.toLowerCase() === config.key.toLowerCase();
+}
+
+function editorHasFocus() {
+  return document.activeElement === els.body || document.activeElement === els.title;
+}
+
+function updateTranslationPreference(key, value) {
+  translationPrefs[key] = value;
+  saveTranslationPreferences();
+  applyPreferences();
+}
+
 function applyPreferences() {
   var themeLabel;
 
@@ -278,6 +459,9 @@ function applyPreferences() {
   fillOptions(els.visibility, text("visibility"));
   fillOptions(els.titleMode, text("titleMode"));
   fillOptions(els.keyboardSound, text("keyboardSoundProfiles"));
+  fillOptions(els.translateSource, text("translationLanguages"));
+  fillOptions(els.translateTarget, text("translationLanguages"));
+  fillOptions(els.translateCase, text("caseModes"));
 
   els.visibility.setAttribute("aria-label", text("visibility")[prefs.visibility]);
   els.titleMode.setAttribute("aria-label", text("titleMode")[prefs.titleMode]);
@@ -292,6 +476,24 @@ function applyPreferences() {
   els.keyboardSound.setAttribute("aria-label", text("keyboardSound"));
   els.keyboardSoundVolumeLabel.textContent = text("soundVolume");
   els.keyboardSoundVolume.setAttribute("aria-label", text("soundVolume"));
+  els.translationSettingsLabel.textContent = text("translation");
+  els.translateSourceLabel.textContent = text("translateFrom");
+  els.translateTargetLabel.textContent = text("translateTo");
+  els.translateCaseLabel.textContent = text("translateCase");
+  els.translateProtectTokensLabel.textContent = text("protectTokens");
+  els.translateShortcutLabel.textContent = text("shortcut");
+  els.translateButton.querySelector("span").textContent = text("translate");
+  els.translateButton.setAttribute("aria-label", text("translate"));
+  els.translateSource.setAttribute("aria-label", text("translateFrom"));
+  els.translateTarget.setAttribute("aria-label", text("translateTo"));
+  els.translateCase.setAttribute("aria-label", text("translateCase"));
+  els.translateSource.value = translationPrefs.source;
+  els.translateTarget.value = translationPrefs.target;
+  els.translateCase.value = translationPrefs.caseMode;
+  els.translateProtectTokens.checked = translationPrefs.protectTokens;
+  els.translateShortcutButton.textContent = waitingForShortcut ? text("pressShortcut") : translationPrefs.shortcut;
+  els.translateShortcutButton.setAttribute("aria-label", text("shortcut"));
+  els.translateShortcutButton.classList.toggle("recording", waitingForShortcut);
   if (window.wxwKeyboardSounds) {
     els.keyboardSound.value = window.wxwKeyboardSounds.getProfile();
     updateVolumeLabel(window.wxwKeyboardSounds.getVolume());
@@ -525,6 +727,51 @@ function publish() {
     });
 }
 
+function translateDraft() {
+  if (!els.title.value.trim() && !els.body.value.trim()) {
+    showToast(text("noTextToTranslate"));
+    return;
+  }
+
+  els.translateButton.disabled = true;
+  els.translateButton.querySelector("span").textContent = text("translating");
+
+  fetch("/api/translate", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrf
+    },
+    body: JSON.stringify({
+      title: els.title.value,
+      body: els.body.value,
+      source: translationPrefs.source,
+      target: translationPrefs.target,
+      case_mode: translationPrefs.caseMode,
+      protect_tokens: translationPrefs.protectTokens
+    })
+  })
+    .then(parseJsonResponse)
+    .then(function (data) {
+      els.title.value = data.title || "";
+      els.body.value = data.body || "";
+      prefs.language = translationPrefs.target;
+      savePreferences();
+      applyPreferences();
+      saveDraft();
+      autosize();
+      showToast(text("translated"));
+    })
+    .catch(function (error) {
+      showToast(error.message || text("translateFailed"));
+    })
+    .then(function () {
+      els.translateButton.disabled = false;
+      els.translateButton.querySelector("span").textContent = text("translate");
+    });
+}
+
 function logout(event) {
   if (event && event.preventDefault) event.preventDefault();
   if (!csrf) {
@@ -571,6 +818,24 @@ function bindEvents() {
   els.language.addEventListener("change", function () {
     updatePreference("language", els.language.value);
   });
+  els.translateSource.addEventListener("change", function () {
+    updateTranslationPreference("source", els.translateSource.value);
+  });
+  els.translateTarget.addEventListener("change", function () {
+    updateTranslationPreference("target", els.translateTarget.value);
+  });
+  els.translateCase.addEventListener("change", function () {
+    updateTranslationPreference("caseMode", els.translateCase.value);
+  });
+  els.translateProtectTokens.addEventListener("change", function () {
+    updateTranslationPreference("protectTokens", els.translateProtectTokens.checked);
+  });
+  els.translateShortcutButton.addEventListener("click", function () {
+    waitingForShortcut = true;
+    applyPreferences();
+    els.translateShortcutButton.focus();
+  });
+  els.translateButton.addEventListener("click", translateDraft);
   els.themeToggle.addEventListener("click", function () {
     updatePreference("theme", prefs.theme === "dark" ? "light" : "dark");
   });
@@ -581,9 +846,29 @@ function bindEvents() {
     }
   });
   document.addEventListener("keydown", function (event) {
+    var shortcut;
+    if (waitingForShortcut) {
+      event.preventDefault();
+      if (event.key === "Escape") {
+        waitingForShortcut = false;
+        applyPreferences();
+        return;
+      }
+      shortcut = shortcutFromEvent(event);
+      if (shortcut) {
+        waitingForShortcut = false;
+        updateTranslationPreference("shortcut", shortcut);
+      }
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       publish();
+    }
+    if (editorHasFocus() && eventMatchesShortcut(event, translationPrefs.shortcut)) {
+      event.preventDefault();
+      translateDraft();
+      return;
     }
     if (event.key === "Escape" && els.settingsMenu.open) {
       els.settingsMenu.open = false;

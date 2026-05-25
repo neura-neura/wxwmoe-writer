@@ -17,6 +17,11 @@ Environment=WXW_APP_WEBSITE=https://github.com/neura-neura/wxwmoe-writer
 Environment=WXW_APP_HOST=0.0.0.0
 Environment=WXW_APP_PORT=18080
 Environment=WXW_DATA_DIR=/opt/wxwmoe-writing/data
+Environment=WXW_TRANSLATE_PROVIDER=google
+# Optional LibreTranslate-compatible provider:
+# Environment=WXW_TRANSLATE_PROVIDER=libretranslate
+# Environment=WXW_TRANSLATE_URL=https://libretranslate.example.com/translate
+# Environment=WXW_TRANSLATE_API_KEY=
 ExecStart=/usr/bin/python3 /opt/wxwmoe-writing/server.py
 Restart=always
 RestartSec=5

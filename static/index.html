@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>wxw.moe diario</title>
     <link rel="icon" type="image/svg+xml" href="/static/icon.svg?v=20260525-1" />
-    <link rel="stylesheet" href="/static/app.css?v=20260525-7" />
+    <link rel="stylesheet" href="/static/app.css?v=20260525-8" />
   </head>
   <body>
     <main class="writer-shell" aria-live="polite">
@@ -56,6 +56,47 @@
                   </div>
                   <input id="keyboardSoundVolume" type="range" min="0" max="100" step="1" value="25" aria-label="Sound volume" />
                 </div>
+                <section class="settings-section translate-settings" aria-labelledby="translationSettingsLabel">
+                  <h2 id="translationSettingsLabel">Translation</h2>
+                  <div class="settings-grid two-columns">
+                    <div class="select-field">
+                      <label id="translateSourceLabel" for="translateSource">From</label>
+                      <select id="translateSource" aria-label="Translate from">
+                        <option value="auto">Auto</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="zh">中文</option>
+                      </select>
+                    </div>
+                    <div class="select-field">
+                      <label id="translateTargetLabel" for="translateTarget">To</label>
+                      <select id="translateTarget" aria-label="Translate to">
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="zh">中文</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="select-field">
+                    <label id="translateCaseLabel" for="translateCase">Result case</label>
+                    <select id="translateCase" aria-label="Result case">
+                      <option value="normal">Normal</option>
+                      <option value="upper">UPPERCASE</option>
+                      <option value="lower">lowercase</option>
+                    </select>
+                  </div>
+                  <label class="check-field" for="translateProtectTokens">
+                    <input id="translateProtectTokens" type="checkbox" checked />
+                    <span id="translateProtectTokensLabel">Protect mentions, hashtags, links, and :emoji:.</span>
+                  </label>
+                  <div class="shortcut-field">
+                    <span id="translateShortcutLabel">Shortcut</span>
+                    <button id="translateShortcutButton" class="secondary-button" type="button">Ctrl+Alt+T</button>
+                  </div>
+                  <button id="translateButton" class="secondary-button translate-button" type="button">
+                    <span>Translate</span>
+                  </button>
+                </section>
               </div>
             </details>
             <button id="themeToggle" class="icon-button" type="button" title="Dark mode" aria-label="Dark mode">
@@ -120,6 +161,6 @@
     </main>
 
     <script src="/static/keyboardSounds.js?v=20260525-3" defer></script>
-    <script src="/static/app.js?v=20260525-7" defer></script>
+    <script src="/static/app.js?v=20260525-8" defer></script>
   </body>
 </html>

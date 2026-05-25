@@ -5,6 +5,7 @@ import hmac
 import json
 import mimetypes
 import os
+import re
 import secrets
 import time
 import traceback
@@ -38,6 +39,14 @@ HOST = os.environ.get("WXW_APP_HOST", "0.0.0.0")
 PORT = int(os.environ.get("WXW_APP_PORT", "18080"))
 BASE_URL = os.environ.get("WXW_BASE_URL", "").strip().rstrip("/")
 SCOPES = os.environ.get("WXW_SCOPES", DEFAULT_SCOPES)
+TRANSLATE_PROVIDER = os.environ.get("WXW_TRANSLATE_PROVIDER", "google").strip().lower()
+TRANSLATE_URL = os.environ.get("WXW_TRANSLATE_URL", "").strip()
+TRANSLATE_API_KEY = os.environ.get("WXW_TRANSLATE_API_KEY", "").strip()
+TRANSLATE_LANGUAGES = {"en", "es", "zh"}
+TRANSLATE_SOURCES = TRANSLATE_LANGUAGES | {"auto"}
+PROTECTED_TOKEN_RE = re.compile(
+    r"https?://[^\s<>'\"]+|www\.[^\s<>'\"]+|@[A-Za-z0-9_]+(?:@[A-Za-z0-9_.-]+)?|#[^\s#]+|:[A-Za-z0-9_+-]+:"
+)
 
 
 def parse_base_urls():
@@ -176,6 +185,19 @@ def json_request(req):
         raise RuntimeError(f"{exc.code} {exc.reason}: {message}") from exc
 
 
+def json_post_request(url, payload, headers=None):
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request_headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": f"{APP_NAME}/1.0",
+    }
+    if headers:
+        request_headers.update(headers)
+    req = urllib.request.Request(url, data=data, headers=request_headers, method="POST")
+    return json_request(req)
+
+
 def bearer_get(path, token):
     req = urllib.request.Request(
         f"{INSTANCE_URL}{path}",
@@ -311,6 +333,113 @@ def valid_language(language):
     return "en"
 
 
+def valid_translate_source(language):
+    if language in TRANSLATE_SOURCES:
+        return language
+    return "auto"
+
+
+def valid_translate_target(language):
+    if language in TRANSLATE_LANGUAGES:
+        return language
+    return "en"
+
+
+def valid_case_mode(case_mode):
+    if case_mode in {"normal", "upper", "lower"}:
+        return case_mode
+    return "normal"
+
+
+def protect_translation_tokens(text):
+    protected = {}
+
+    def replace(match):
+        marker = f"\ue000{len(protected)}\ue001"
+        protected[marker] = match.group(0)
+        return marker
+
+    return PROTECTED_TOKEN_RE.sub(replace, text), protected
+
+
+def restore_translation_tokens(text, protected):
+    for marker, token in protected.items():
+        text = text.replace(marker, token)
+    return text
+
+
+def apply_case_mode(text, case_mode):
+    if case_mode == "upper":
+        return text.upper()
+    if case_mode == "lower":
+        return text.lower()
+    return text
+
+
+def google_translate_text(text, source, target):
+    url = TRANSLATE_URL or "https://translate.googleapis.com/translate_a/single"
+    payload = urllib.parse.urlencode(
+        {
+            "client": "gtx",
+            "sl": source,
+            "tl": target,
+            "dt": "t",
+            "q": text,
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": f"{APP_NAME}/1.0",
+        },
+        method="POST",
+    )
+    data = json_request(req)
+    parts = data[0] if data and isinstance(data[0], list) else []
+    return "".join(part[0] for part in parts if part and part[0])
+
+
+def libretranslate_text(text, source, target):
+    url = TRANSLATE_URL or "https://libretranslate.com/translate"
+    payload = {
+        "q": text,
+        "source": source,
+        "target": target,
+        "format": "text",
+    }
+    if TRANSLATE_API_KEY:
+        payload["api_key"] = TRANSLATE_API_KEY
+    data = json_post_request(url, payload)
+    translated = data.get("translatedText")
+    if not isinstance(translated, str):
+        raise RuntimeError("La respuesta del traductor no incluyó texto traducido.")
+    return translated
+
+
+def translate_text(text, source, target, case_mode, protect_tokens):
+    if not text:
+        return ""
+    protected = {}
+    prepared = text
+    if protect_tokens:
+        prepared, protected = protect_translation_tokens(text)
+
+    if TRANSLATE_PROVIDER in {"google", "googletranslate", "google-translate"}:
+        translated = google_translate_text(prepared, source, target)
+    elif TRANSLATE_PROVIDER in {"libre", "libretranslate", "libre-translate"}:
+        translated = libretranslate_text(prepared, source, target)
+    else:
+        raise RuntimeError("El proveedor de traducción no está configurado correctamente.")
+
+    translated = apply_case_mode(translated, case_mode)
+    if protect_tokens:
+        translated = restore_translation_tokens(translated, protected)
+    return translated
+
+
 def decode_signed_state(signed_state):
     state_value = verify_signed_value(signed_state)
     if not state_value:
@@ -422,6 +551,7 @@ class AppHandler(BaseHTTPRequestHandler):
                         "instance": INSTANCE_URL,
                         "base_urls": BASE_URLS,
                         "dynamic_host_callbacks": not bool(BASE_URLS),
+                        "translation_provider": TRANSLATE_PROVIDER,
                     }
                 )
                 return
@@ -493,6 +623,9 @@ class AppHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/publish":
                 self.handle_publish()
+                return
+            if path == "/api/translate":
+                self.handle_translate()
                 return
             self.send_error(HTTPStatus.NOT_FOUND)
         except Exception as exc:
@@ -663,6 +796,52 @@ class AppHandler(BaseHTTPRequestHandler):
                 "id": published.get("id"),
                 "url": published.get("url") or published.get("uri"),
                 "visibility": published.get("visibility"),
+            }
+        )
+
+    def handle_translate(self):
+        _, session = self.require_session()
+        if not session:
+            self.send_json({"authenticated": False}, HTTPStatus.UNAUTHORIZED)
+            return
+        csrf = self.headers.get("X-CSRF-Token", "")
+        if not hmac.compare_digest(csrf, session.get("csrf", "")):
+            self.send_error_json("Token CSRF inválido.", HTTPStatus.FORBIDDEN)
+            return
+
+        raw = read_body(self)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError:
+            self.send_error_json("La petición no tiene JSON válido.", HTTPStatus.BAD_REQUEST)
+            return
+
+        title = payload.get("title", "")
+        body = payload.get("body", "")
+        source = valid_translate_source(payload.get("source", "auto"))
+        target = valid_translate_target(payload.get("target", "en"))
+        case_mode = valid_case_mode(payload.get("case_mode", "normal"))
+        protect_tokens = bool(payload.get("protect_tokens", True))
+
+        if not str(title).strip() and not str(body).strip():
+            self.send_error_json("No hay texto para traducir.", HTTPStatus.BAD_REQUEST)
+            return
+
+        try:
+            translated_title = translate_text(str(title), source, target, case_mode, protect_tokens)
+            translated_body = translate_text(str(body), source, target, case_mode, protect_tokens)
+        except Exception as exc:
+            self.send_error_json(f"No se pudo traducir: {exc}", HTTPStatus.BAD_GATEWAY)
+            return
+
+        self.send_json(
+            {
+                "ok": True,
+                "title": translated_title,
+                "body": translated_body,
+                "source": source,
+                "target": target,
+                "case_mode": case_mode,
             }
         )
 

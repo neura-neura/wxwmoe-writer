@@ -25,6 +25,7 @@ It was built for `wxw.moe`, but the backend uses the Mastodon API and can be con
   - **Title as content warning** sends the title as Mastodon's CW/spoiler text.
 - Settings menu for interface/post language and keyboard sound preferences.
 - Interface and post language selector for English, Spanish, and Chinese.
+- Server-side translation for title and body, with source auto-detection, target language, result casing, protected Mastodon tokens, and a configurable keyboard shortcut.
 - Optional local keyboard sound profiles powered by bundled assets:
   - Alpaca
   - iOS
@@ -49,11 +50,16 @@ WXW_BASE_URLS=http://your-lan-ip:18080,http://your-vpn-ip:18080
 WXW_APP_HOST=0.0.0.0
 WXW_APP_PORT=18080
 WXW_DATA_DIR=/opt/wxwmoe-writing/data
+WXW_TRANSLATE_PROVIDER=google
+WXW_TRANSLATE_URL=
+WXW_TRANSLATE_API_KEY=
 ```
 
 `WXW_BASE_URLS` can contain multiple callback origins, which is useful when the same server is reached through LAN and VPN addresses.
 
 No server IPs are hardcoded. If `WXW_BASE_URL` and `WXW_BASE_URLS` are omitted, the app derives the callback origin from the incoming `Host` header. For a personal server, setting `WXW_BASE_URLS` explicitly is still recommended so OAuth registration is predictable.
+
+Translation defaults to a server-side Google Translate web endpoint (`WXW_TRANSLATE_PROVIDER=google`) so the browser never calls translation services directly. This is convenient for personal deployments but is not the official paid Google Cloud Translation API. You can also set `WXW_TRANSLATE_PROVIDER=libretranslate`, `WXW_TRANSLATE_URL`, and optionally `WXW_TRANSLATE_API_KEY` to use a LibreTranslate-compatible server.
 
 ## Run Locally
 
