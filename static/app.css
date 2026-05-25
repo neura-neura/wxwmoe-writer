@@ -17,6 +17,7 @@
   --danger: #9d3b38;
   --body-line: 2rem;
   --body-baseline: 1.52rem;
+  --writing-tail: 34vh;
   color-scheme: light;
 }
 
@@ -48,6 +49,10 @@ html,
 body {
   min-height: 100%;
   margin: 0;
+}
+
+html {
+  scroll-padding-bottom: var(--writing-tail);
 }
 
 body {
@@ -444,7 +449,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .body-sheet {
-  min-height: 48vh;
+  min-height: calc(48vh + var(--writing-tail));
   background-image:
     linear-gradient(
       to bottom,
@@ -461,7 +466,7 @@ input[type="range"]::-moz-range-thumb {
 
 .body-input {
   display: block;
-  min-height: 48vh;
+  min-height: calc(48vh + var(--writing-tail));
   padding: 0;
   resize: none;
   overflow: hidden;

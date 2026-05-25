@@ -254,6 +254,7 @@ var prefs = loadPreferences();
 var translationPrefs = loadTranslationPreferences();
 var toastTimer = 0;
 var waitingForShortcut = false;
+var lastBodyContentHeight = 0;
 
 function optionIsAllowed(value, allowed, fallback) {
   return allowed.indexOf(value) >= 0 ? value : fallback;
@@ -575,9 +576,52 @@ function showToast(message, action, duration) {
   }, duration || 4600);
 }
 
-function autosize() {
+function bodyLineHeight() {
+  var lineHeight = parseFloat(window.getComputedStyle(els.body).lineHeight);
+  return lineHeight || 32;
+}
+
+function writingTailHeight() {
+  return Math.max(bodyLineHeight() * 10, window.innerHeight * 0.34);
+}
+
+function bodyCaretIsAtEnd() {
+  return document.activeElement === els.body && els.body.selectionStart >= els.body.value.length - 2;
+}
+
+function keepWritingLineInView(contentHeight) {
+  var rect;
+  var writingLineY;
+  var preferredY;
+  var delta;
+  if (!bodyCaretIsAtEnd()) return;
+
+  rect = els.body.getBoundingClientRect();
+  writingLineY = rect.top + Math.max(0, contentHeight - bodyLineHeight() * 0.45);
+  preferredY = window.innerHeight * 0.62;
+  delta = writingLineY - preferredY;
+
+  if (delta > bodyLineHeight() * 0.8) {
+    window.scrollBy({ top: delta, behavior: delta > 180 ? "smooth" : "auto" });
+  }
+}
+
+function autosize(options) {
+  var tail = writingTailHeight();
+  var minHeight = window.innerHeight * 0.48 + tail;
+  var height;
+  var shouldFollow = options && options.followWriting;
+  document.documentElement.style.setProperty("--writing-tail", Math.round(tail) + "px");
   els.body.style.height = "auto";
-  els.body.style.height = Math.max(els.body.scrollHeight, window.innerHeight * 0.48) + "px";
+  lastBodyContentHeight = els.body.scrollHeight;
+  height = Math.max(lastBodyContentHeight + tail, minHeight);
+  els.body.style.height = height + "px";
+  els.body.parentNode.style.minHeight = height + "px";
+  if (shouldFollow) {
+    window.requestAnimationFrame(function () {
+      keepWritingLineInView(lastBodyContentHeight);
+    });
+  }
 }
 
 function updateCount() {
@@ -807,7 +851,7 @@ function bindEvents() {
   });
   els.body.addEventListener("input", function () {
     saveDraft();
-    autosize();
+    autosize({ followWriting: true });
   });
   els.visibility.addEventListener("change", function () {
     updatePreference("visibility", els.visibility.value);
