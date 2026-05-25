@@ -20,6 +20,8 @@ var els = {
   pinHeaderLabel: document.querySelector("#pinHeaderLabel"),
   pinFooter: document.querySelector("#pinFooter"),
   pinFooterLabel: document.querySelector("#pinFooterLabel"),
+  pinnedChrome: document.querySelector("#pinnedChrome"),
+  pinnedChromeLabel: document.querySelector("#pinnedChromeLabel"),
   translationSettingsLabel: document.querySelector("#translationSettingsLabel"),
   translateSource: document.querySelector("#translateSource"),
   translateSourceLabel: document.querySelector("#translateSourceLabel"),
@@ -35,6 +37,7 @@ var els = {
   themeToggle: document.querySelector("#themeToggle"),
   logout: document.querySelector("#logout"),
   publish: document.querySelector("#publish"),
+  statusbar: document.querySelector(".statusbar"),
   saved: document.querySelector("#saved"),
   count: document.querySelector("#count"),
   words: document.querySelector("#words"),
@@ -49,7 +52,8 @@ var defaultPrefs = {
   language: "en",
   theme: "light",
   pinHeader: false,
-  pinFooter: false
+  pinFooter: false,
+  pinnedChrome: false
 };
 var defaultTranslationPrefs = {
   source: "auto",
@@ -71,6 +75,7 @@ var i18n = {
     layout: "Layout",
     pinHeader: "Pin header while scrolling",
     pinFooter: "Pin footer while scrolling",
+    pinnedChrome: "Show pinned shadow and border",
     translation: "Translation",
     translateFrom: "From",
     translateTo: "To",
@@ -138,6 +143,7 @@ var i18n = {
     layout: "Disposición",
     pinHeader: "Fijar encabezado al hacer scroll",
     pinFooter: "Fijar barra inferior al hacer scroll",
+    pinnedChrome: "Mostrar sombra y borde al fijar",
     translation: "Traducción",
     translateFrom: "Origen",
     translateTo: "Destino",
@@ -205,6 +211,7 @@ var i18n = {
     layout: "布局",
     pinHeader: "滚动时固定页眉",
     pinFooter: "滚动时固定页脚",
+    pinnedChrome: "固定时显示阴影和边框",
     translation: "翻译",
     translateFrom: "源语言",
     translateTo: "目标语言",
@@ -312,7 +319,8 @@ function loadPreferences() {
       language: defaultPrefs.language,
       theme: defaultPrefs.theme,
       pinHeader: defaultPrefs.pinHeader,
-      pinFooter: defaultPrefs.pinFooter
+      pinFooter: defaultPrefs.pinFooter,
+      pinnedChrome: defaultPrefs.pinnedChrome
     };
   }
 
@@ -328,7 +336,8 @@ function loadPreferences() {
     language: optionIsAllowed(parsed.language, ["en", "es", "zh"], defaultPrefs.language),
     theme: optionIsAllowed(parsed.theme, ["light", "dark"], defaultPrefs.theme),
     pinHeader: typeof parsed.pinHeader === "boolean" ? parsed.pinHeader : defaultPrefs.pinHeader,
-    pinFooter: typeof parsed.pinFooter === "boolean" ? parsed.pinFooter : defaultPrefs.pinFooter
+    pinFooter: typeof parsed.pinFooter === "boolean" ? parsed.pinFooter : defaultPrefs.pinFooter,
+    pinnedChrome: typeof parsed.pinnedChrome === "boolean" ? parsed.pinnedChrome : defaultPrefs.pinnedChrome
   };
 }
 
@@ -471,6 +480,7 @@ function applyPreferences() {
   document.documentElement.setAttribute("data-theme", prefs.theme);
   document.documentElement.setAttribute("data-pin-header", prefs.pinHeader ? "true" : "false");
   document.documentElement.setAttribute("data-pin-footer", prefs.pinFooter ? "true" : "false");
+  document.documentElement.setAttribute("data-pinned-chrome", prefs.pinnedChrome ? "true" : "false");
   document.title = text("documentTitle");
 
   els.visibility.value = prefs.visibility;
@@ -502,8 +512,10 @@ function applyPreferences() {
   els.layoutSettingsLabel.textContent = text("layout");
   els.pinHeaderLabel.textContent = text("pinHeader");
   els.pinFooterLabel.textContent = text("pinFooter");
+  els.pinnedChromeLabel.textContent = text("pinnedChrome");
   els.pinHeader.checked = prefs.pinHeader;
   els.pinFooter.checked = prefs.pinFooter;
+  els.pinnedChrome.checked = prefs.pinnedChrome;
   els.translationSettingsLabel.textContent = text("translation");
   els.translateSourceLabel.textContent = text("translateFrom");
   els.translateTargetLabel.textContent = text("translateTo");
@@ -545,6 +557,7 @@ function applyPreferences() {
     els.saved.textContent = text("localDraft");
   }
   updateCount();
+  updatePinnedLayout();
 }
 
 function composedText() {
@@ -581,6 +594,7 @@ function showToast(message, action, duration) {
   var link;
   window.clearTimeout(toastTimer);
   els.toast.textContent = "";
+  updatePinnedLayout();
 
   messageEl = document.createElement("span");
   messageEl.className = "toast-message";
@@ -612,20 +626,64 @@ function writingTailHeight() {
   return Math.max(bodyLineHeight() * 10, window.innerHeight * 0.34);
 }
 
+function measureBodyContentHeight(value) {
+  var style = window.getComputedStyle(els.body);
+  var mirror = document.createElement("div");
+  var marker = document.createElement("span");
+  var height;
+  mirror.setAttribute("aria-hidden", "true");
+  mirror.style.position = "absolute";
+  mirror.style.left = "-9999px";
+  mirror.style.top = "0";
+  mirror.style.visibility = "hidden";
+  mirror.style.width = Math.max(1, els.body.clientWidth) + "px";
+  mirror.style.minHeight = "0";
+  mirror.style.height = "auto";
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.boxSizing = style.boxSizing;
+  mirror.style.fontFamily = style.fontFamily;
+  mirror.style.fontSize = style.fontSize;
+  mirror.style.fontStyle = style.fontStyle;
+  mirror.style.fontWeight = style.fontWeight;
+  mirror.style.letterSpacing = style.letterSpacing;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.textTransform = style.textTransform;
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.overflowWrap = "break-word";
+  mirror.style.wordBreak = style.wordBreak;
+  mirror.appendChild(document.createTextNode(value || "\u200b"));
+  marker.textContent = "\u200b";
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  height = Math.max(bodyLineHeight(), marker.offsetTop + bodyLineHeight());
+  mirror.remove();
+  return height;
+}
+
+function bodyCaretContentHeight() {
+  return measureBodyContentHeight(els.body.value.slice(0, els.body.selectionEnd));
+}
+
 function bodyCaretIsAtEnd() {
   return document.activeElement === els.body && els.body.selectionStart >= els.body.value.length - 2;
 }
 
-function keepWritingLineInView(contentHeight) {
+function keepWritingLineInView(caretHeight) {
   var rect;
   var writingLineY;
   var preferredY;
   var delta;
+  var footerHeight = 0;
   if (!bodyCaretIsAtEnd()) return;
 
   rect = els.body.getBoundingClientRect();
-  writingLineY = rect.top + Math.max(0, contentHeight - bodyLineHeight() * 0.45);
-  preferredY = window.innerHeight * 0.62;
+  if (prefs.pinFooter && els.statusbar) {
+    footerHeight = els.statusbar.getBoundingClientRect().height;
+  }
+  writingLineY = rect.top + Math.max(0, caretHeight - bodyLineHeight() * 0.45);
+  preferredY = Math.min(window.innerHeight * 0.62, window.innerHeight - footerHeight - bodyLineHeight() * 4);
+  preferredY = Math.max(window.innerHeight * 0.38, preferredY);
   delta = writingLineY - preferredY;
 
   if (delta > bodyLineHeight() * 0.8) {
@@ -633,20 +691,32 @@ function keepWritingLineInView(contentHeight) {
   }
 }
 
+function updatePinnedLayout() {
+  var lift = 0;
+  if (prefs.pinFooter && els.statusbar) {
+    lift = Math.ceil(els.statusbar.getBoundingClientRect().height + 18);
+  }
+  document.documentElement.style.setProperty("--pinned-footer-lift", lift + "px");
+}
+
 function autosize(options) {
   var tail = writingTailHeight();
   var minHeight = window.innerHeight * 0.48 + tail;
+  var contentHeight;
+  var caretHeight;
   var height;
   var shouldFollow = options && options.followWriting;
   document.documentElement.style.setProperty("--writing-tail", Math.round(tail) + "px");
-  els.body.style.height = "auto";
-  lastBodyContentHeight = els.body.scrollHeight;
-  height = Math.max(lastBodyContentHeight + tail, minHeight);
+  contentHeight = measureBodyContentHeight(els.body.value);
+  caretHeight = bodyCaretContentHeight();
+  lastBodyContentHeight = contentHeight;
+  height = Math.max(contentHeight + tail, minHeight);
   els.body.style.height = height + "px";
   els.body.parentNode.style.minHeight = height + "px";
+  updatePinnedLayout();
   if (shouldFollow) {
     window.requestAnimationFrame(function () {
-      keepWritingLineInView(lastBodyContentHeight);
+      keepWritingLineInView(caretHeight);
     });
   }
 }
@@ -895,6 +965,9 @@ function bindEvents() {
   els.pinFooter.addEventListener("change", function () {
     updatePreference("pinFooter", els.pinFooter.checked);
   });
+  els.pinnedChrome.addEventListener("change", function () {
+    updatePreference("pinnedChrome", els.pinnedChrome.checked);
+  });
   els.translateSource.addEventListener("change", function () {
     updateTranslationPreference("source", els.translateSource.value);
   });
@@ -953,7 +1026,9 @@ function bindEvents() {
     }
   });
   els.publish.addEventListener("click", publish);
-  window.addEventListener("resize", autosize);
+  window.addEventListener("resize", function () {
+    autosize();
+  });
 }
 
 bindEvents();

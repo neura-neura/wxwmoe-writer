@@ -31,6 +31,7 @@ It was built for `wxw.moe`, but the backend uses the Mastodon API and can be con
   - iOS
   - Logitech G915 TKL Brown
 - Persistent keyboard sound volume control.
+- Optional pinned header/footer controls, with an optional pinned shadow and border treatment.
 - Light and dark cozy themes.
 - Publish button plus `Ctrl+Enter` / `Cmd+Enter`.
 - Systemd service example for automatic startup after reboot.

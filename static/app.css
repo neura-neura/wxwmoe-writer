@@ -19,6 +19,7 @@
   --body-baseline: 1.52rem;
   --writing-tail: 34vh;
   --paper-pad-x: 56px;
+  --pinned-footer-lift: 0px;
   color-scheme: light;
 }
 
@@ -120,6 +121,7 @@ textarea {
   z-index: 35;
   margin-top: -14px;
   padding: 14px 0;
+  background: var(--paper);
 }
 
 :root[data-pin-header="true"] .writer-header::before {
@@ -127,8 +129,11 @@ textarea {
   position: absolute;
   inset: -18px calc(var(--paper-pad-x) * -1) -12px;
   z-index: -1;
-  border-bottom: 1px solid var(--paper-edge);
   background: var(--paper);
+}
+
+:root[data-pinned-chrome="true"][data-pin-header="true"] .writer-header::before {
+  border-bottom: 1px solid var(--paper-edge);
   box-shadow: 0 18px 38px var(--shadow);
 }
 
@@ -138,6 +143,7 @@ textarea {
   z-index: 30;
   margin-bottom: -14px;
   padding: 14px 0;
+  background: var(--paper);
 }
 
 :root[data-pin-footer="true"] .statusbar::before {
@@ -145,8 +151,11 @@ textarea {
   position: absolute;
   inset: -12px calc(var(--paper-pad-x) * -1) -18px;
   z-index: -1;
-  border-top: 1px solid var(--paper-edge);
   background: var(--paper);
+}
+
+:root[data-pinned-chrome="true"][data-pin-footer="true"] .statusbar::before {
+  border-top: 1px solid var(--paper-edge);
   box-shadow: 0 -18px 38px var(--shadow);
 }
 
@@ -548,7 +557,8 @@ input[type="range"]::-moz-range-thumb {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(24px + var(--pinned-footer-lift));
+  z-index: 90;
   max-width: min(92vw, 560px);
   display: flex;
   align-items: center;
