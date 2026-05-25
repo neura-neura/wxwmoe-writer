@@ -24,6 +24,10 @@ It was built for `wxw.moe`, but the backend uses the Mastodon API and can be con
   - **Title in post** publishes the title as the first line.
   - **Title as content warning** sends the title as Mastodon's CW/spoiler text.
 - Interface and post language selector for English, Spanish, and Chinese.
+- Optional local keyboard sound profiles powered by bundled assets:
+  - Alpaca
+  - iOS
+  - Logitech G915 TKL Brown
 - Light and dark cozy themes.
 - Publish button plus `Ctrl+Enter` / `Cmd+Enter`.
 - Systemd service example for automatic startup after reboot.
@@ -76,3 +80,5 @@ sudo systemctl enable --now wxwmoe-writing.service
 ## Notes
 
 The first login registers an OAuth application with the configured Mastodon instance. If `WXW_APP_NAME`, `WXW_APP_WEBSITE`, or the callback URLs change, the service registers a new OAuth application automatically.
+
+Keyboard sounds are bundled locally under `public/sounds/keyboards/` and are not hotlinked in production. The audio profiles come from [`keyboard-sounds/keyboardsounds-pro`](https://github.com/keyboard-sounds/keyboardsounds-pro), which is MIT licensed; see `THIRD_PARTY_KEYBOARDSOUNDS_LICENSE`.

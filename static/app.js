@@ -5,6 +5,8 @@ var els = {
   visibility: document.querySelector("#visibility"),
   titleMode: document.querySelector("#titleMode"),
   language: document.querySelector("#language"),
+  keyboardSound: document.querySelector("#keyboardSound"),
+  keyboardSoundLabel: document.querySelector("#keyboardSoundLabel"),
   themeToggle: document.querySelector("#themeToggle"),
   logout: document.querySelector("#logout"),
   publish: document.querySelector("#publish"),
@@ -28,6 +30,7 @@ var i18n = {
     title: "Title",
     body: "Body",
     language: "Language",
+    keyboardSound: "Keyboard sound",
     titlePlaceholder: "Title",
     bodyPlaceholder: "Start here...",
     localDraft: "Local draft",
@@ -53,6 +56,12 @@ var i18n = {
       heading: "Title in post",
       cw: "Title as content warning"
     },
+    keyboardSoundProfiles: {
+      none: "No sound",
+      alpaca: "Alpaca",
+      ios: "iOS",
+      "logitech-g915-tkl-brown": "Logitech G915 TKL Brown"
+    },
     titleModeHelp: "Title in post publishes it as the first line. Content warning uses Mastodon's CW field and hides the body behind it."
   },
   es: {
@@ -60,6 +69,7 @@ var i18n = {
     title: "Título",
     body: "Cuerpo",
     language: "Idioma",
+    keyboardSound: "Sonido de teclado",
     titlePlaceholder: "Título",
     bodyPlaceholder: "Empieza aquí...",
     localDraft: "Borrador local",
@@ -85,6 +95,12 @@ var i18n = {
       heading: "Título en el post",
       cw: "Título como aviso CW"
     },
+    keyboardSoundProfiles: {
+      none: "Sin sonido",
+      alpaca: "Alpaca",
+      ios: "iOS",
+      "logitech-g915-tkl-brown": "Logitech G915 TKL Brown"
+    },
     titleModeHelp: "Título en el post lo publica como primera línea. Aviso CW usa el campo Content Warning de Mastodon y oculta el cuerpo detrás."
   },
   zh: {
@@ -92,6 +108,7 @@ var i18n = {
     title: "标题",
     body: "正文",
     language: "语言",
+    keyboardSound: "键盘声音",
     titlePlaceholder: "标题",
     bodyPlaceholder: "从这里开始...",
     localDraft: "本地草稿",
@@ -116,6 +133,12 @@ var i18n = {
     titleMode: {
       heading: "标题写入帖文",
       cw: "标题作为 CW"
+    },
+    keyboardSoundProfiles: {
+      none: "无声音",
+      alpaca: "Alpaca",
+      ios: "iOS",
+      "logitech-g915-tkl-brown": "Logitech G915 TKL Brown"
     },
     titleModeHelp: "标题写入帖文会把它放在第一行。CW 会使用 Mastodon 的内容警告字段并隐藏正文。"
   }
@@ -235,11 +258,17 @@ function applyPreferences() {
 
   fillOptions(els.visibility, text("visibility"));
   fillOptions(els.titleMode, text("titleMode"));
+  fillOptions(els.keyboardSound, text("keyboardSoundProfiles"));
 
   els.visibility.setAttribute("aria-label", text("visibility")[prefs.visibility]);
   els.titleMode.setAttribute("aria-label", text("titleMode")[prefs.titleMode]);
   els.titleMode.title = text("titleModeHelp");
   els.language.setAttribute("aria-label", text("language"));
+  els.keyboardSoundLabel.textContent = text("keyboardSound");
+  els.keyboardSound.setAttribute("aria-label", text("keyboardSound"));
+  if (window.wxwKeyboardSounds) {
+    els.keyboardSound.value = window.wxwKeyboardSounds.getProfile();
+  }
   els.title.placeholder = text("titlePlaceholder");
   els.title.setAttribute("aria-label", text("title"));
   els.body.placeholder = text("bodyPlaceholder");
@@ -529,6 +558,9 @@ function bindEvents() {
 
 bindEvents();
 applyPreferences();
+if (window.wxwKeyboardSounds) {
+  window.wxwKeyboardSounds.init(els.keyboardSound);
+}
 loadSession().catch(function (error) {
   showToast(error.message);
 });

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>wxw.moe diario</title>
     <link rel="icon" type="image/svg+xml" href="/static/icon.svg?v=20260525-1" />
-    <link rel="stylesheet" href="/static/app.css?v=20260525-4" />
+    <link rel="stylesheet" href="/static/app.css?v=20260525-5" />
   </head>
   <body>
     <main class="writer-shell" aria-live="polite">
@@ -28,6 +28,15 @@
               <option value="es">Español</option>
               <option value="zh">中文</option>
             </select>
+            <div class="select-field keyboard-sound-field">
+              <label id="keyboardSoundLabel" for="keyboardSound">Keyboard sound</label>
+              <select id="keyboardSound" aria-label="Keyboard sound">
+                <option value="none">No sound</option>
+                <option value="alpaca">Alpaca</option>
+                <option value="ios">iOS</option>
+                <option value="logitech-g915-tkl-brown">Logitech G915 TKL Brown</option>
+              </select>
+            </div>
             <button id="themeToggle" class="icon-button" type="button" title="Dark mode" aria-label="Dark mode">
               <svg class="icon-svg theme-icon theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M20.9 13.1A8.6 8.6 0 0 1 10.9 3.1a7.8 7.8 0 1 0 10 10Z"></path>
@@ -89,6 +98,7 @@
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </main>
 
-    <script src="/static/app.js?v=20260525-4" defer></script>
+    <script src="/static/keyboardSounds.js?v=20260525-1" defer></script>
+    <script src="/static/app.js?v=20260525-5" defer></script>
   </body>
 </html>

@@ -28,6 +28,7 @@ REQUEST_TIMEOUT = 20
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+PUBLIC_DIR = BASE_DIR / "public"
 DATA_DIR = Path(os.environ.get("WXW_DATA_DIR", str(BASE_DIR / "data")))
 CONFIG_PATH = DATA_DIR / "config.json"
 SESSIONS_PATH = DATA_DIR / "sessions.json"
@@ -377,11 +378,12 @@ class AppHandler(BaseHTTPRequestHandler):
     def send_error_json(self, message, status=HTTPStatus.BAD_REQUEST):
         self.send_json({"ok": False, "error": message}, status)
 
-    def serve_static(self, path):
+    def serve_file(self, root, path):
         if path == "/":
             path = "/index.html"
-        candidate = (STATIC_DIR / path.lstrip("/")).resolve()
-        if not str(candidate).startswith(str(STATIC_DIR.resolve())):
+        root = root.resolve()
+        candidate = (root / path.lstrip("/")).resolve()
+        if not str(candidate).startswith(str(root)):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         if not candidate.exists() or not candidate.is_file():
@@ -395,6 +397,12 @@ class AppHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)
+
+    def serve_static(self, path):
+        self.serve_file(STATIC_DIR, path)
+
+    def serve_public(self, path):
+        self.serve_file(PUBLIC_DIR, path)
 
     def require_session(self):
         sid, session = self.session()
@@ -465,6 +473,10 @@ class AppHandler(BaseHTTPRequestHandler):
             if path == "/" or path.startswith("/static/"):
                 static_path = "/index.html" if path == "/" else path.removeprefix("/static")
                 self.serve_static(static_path)
+                return
+
+            if path.startswith("/sounds/"):
+                self.serve_public(path)
                 return
 
             self.send_error(HTTPStatus.NOT_FOUND)
