@@ -4,9 +4,17 @@ var els = {
   body: document.querySelector("#body"),
   visibility: document.querySelector("#visibility"),
   titleMode: document.querySelector("#titleMode"),
+  settingsMenu: document.querySelector("#settingsMenu"),
+  settingsSummary: document.querySelector(".settings-summary"),
+  settingsPanel: document.querySelector(".settings-panel"),
+  settingsLabel: document.querySelector("#settingsLabel"),
   language: document.querySelector("#language"),
+  languageLabel: document.querySelector("#languageLabel"),
   keyboardSound: document.querySelector("#keyboardSound"),
   keyboardSoundLabel: document.querySelector("#keyboardSoundLabel"),
+  keyboardSoundVolume: document.querySelector("#keyboardSoundVolume"),
+  keyboardSoundVolumeLabel: document.querySelector("#keyboardSoundVolumeLabel"),
+  keyboardSoundVolumeValue: document.querySelector("#keyboardSoundVolumeValue"),
   themeToggle: document.querySelector("#themeToggle"),
   logout: document.querySelector("#logout"),
   publish: document.querySelector("#publish"),
@@ -29,8 +37,10 @@ var i18n = {
     documentTitle: "wxw.moe diary",
     title: "Title",
     body: "Body",
+    settings: "Settings",
     language: "Language",
     keyboardSound: "Keyboard sound",
+    soundVolume: "Sound volume",
     titlePlaceholder: "Title",
     bodyPlaceholder: "Start here...",
     localDraft: "Local draft",
@@ -68,8 +78,10 @@ var i18n = {
     documentTitle: "Diario wxw.moe",
     title: "Título",
     body: "Cuerpo",
+    settings: "Configuración",
     language: "Idioma",
     keyboardSound: "Sonido de teclado",
+    soundVolume: "Volumen del sonido",
     titlePlaceholder: "Título",
     bodyPlaceholder: "Empieza aquí...",
     localDraft: "Borrador local",
@@ -107,8 +119,10 @@ var i18n = {
     documentTitle: "wxw.moe 日记",
     title: "标题",
     body: "正文",
+    settings: "设置",
     language: "语言",
     keyboardSound: "键盘声音",
+    soundVolume: "声音音量",
     titlePlaceholder: "标题",
     bodyPlaceholder: "从这里开始...",
     localDraft: "本地草稿",
@@ -233,6 +247,11 @@ function wordsText(count) {
   return count + " " + (count === 1 ? "word" : "words");
 }
 
+function updateVolumeLabel(volume) {
+  if (!els.keyboardSoundVolumeValue) return;
+  els.keyboardSoundVolumeValue.textContent = Math.round(Number(volume || 0) * 100) + "%";
+}
+
 function fillOptions(select, labels) {
   var i;
   var option;
@@ -263,11 +282,21 @@ function applyPreferences() {
   els.visibility.setAttribute("aria-label", text("visibility")[prefs.visibility]);
   els.titleMode.setAttribute("aria-label", text("titleMode")[prefs.titleMode]);
   els.titleMode.title = text("titleModeHelp");
+  els.settingsSummary.setAttribute("aria-label", text("settings"));
+  els.settingsSummary.title = text("settings");
+  els.settingsPanel.setAttribute("aria-label", text("settings"));
+  els.settingsLabel.textContent = text("settings");
+  els.languageLabel.textContent = text("language");
   els.language.setAttribute("aria-label", text("language"));
   els.keyboardSoundLabel.textContent = text("keyboardSound");
   els.keyboardSound.setAttribute("aria-label", text("keyboardSound"));
+  els.keyboardSoundVolumeLabel.textContent = text("soundVolume");
+  els.keyboardSoundVolume.setAttribute("aria-label", text("soundVolume"));
   if (window.wxwKeyboardSounds) {
     els.keyboardSound.value = window.wxwKeyboardSounds.getProfile();
+    updateVolumeLabel(window.wxwKeyboardSounds.getVolume());
+  } else {
+    updateVolumeLabel(Number(els.keyboardSoundVolume.value || 0) / 100);
   }
   els.title.placeholder = text("titlePlaceholder");
   els.title.setAttribute("aria-label", text("title"));
@@ -546,10 +575,19 @@ function bindEvents() {
     updatePreference("theme", prefs.theme === "dark" ? "light" : "dark");
   });
   els.logout.addEventListener("click", logout);
+  document.addEventListener("pointerdown", function (event) {
+    if (els.settingsMenu.open && !els.settingsMenu.contains(event.target)) {
+      els.settingsMenu.open = false;
+    }
+  });
   document.addEventListener("keydown", function (event) {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       publish();
+    }
+    if (event.key === "Escape" && els.settingsMenu.open) {
+      els.settingsMenu.open = false;
+      els.settingsSummary.focus();
     }
   });
   els.publish.addEventListener("click", publish);
@@ -559,7 +597,7 @@ function bindEvents() {
 bindEvents();
 applyPreferences();
 if (window.wxwKeyboardSounds) {
-  window.wxwKeyboardSounds.init(els.keyboardSound);
+  window.wxwKeyboardSounds.init(els.keyboardSound, els.keyboardSoundVolume, updateVolumeLabel);
 }
 loadSession().catch(function (error) {
   showToast(error.message);

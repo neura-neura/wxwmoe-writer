@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>wxw.moe diario</title>
     <link rel="icon" type="image/svg+xml" href="/static/icon.svg?v=20260525-1" />
-    <link rel="stylesheet" href="/static/app.css?v=20260525-5" />
+    <link rel="stylesheet" href="/static/app.css?v=20260525-7" />
   </head>
   <body>
     <main class="writer-shell" aria-live="polite">
@@ -23,20 +23,41 @@
               <option value="heading">Title in post</option>
               <option value="cw">Title as content warning</option>
             </select>
-            <select id="language" aria-label="Language">
-              <option value="en">English</option>
-              <option value="es">Español</option>
-              <option value="zh">中文</option>
-            </select>
-            <div class="select-field keyboard-sound-field">
-              <label id="keyboardSoundLabel" for="keyboardSound">Keyboard sound</label>
-              <select id="keyboardSound" aria-label="Keyboard sound">
-                <option value="none">No sound</option>
-                <option value="alpaca">Alpaca</option>
-                <option value="ios">iOS</option>
-                <option value="logitech-g915-tkl-brown">Logitech G915 TKL Brown</option>
-              </select>
-            </div>
+            <details id="settingsMenu" class="settings-menu">
+              <summary class="settings-summary" aria-label="Settings">
+                <svg class="icon-svg" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"></path>
+                  <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06A2 2 0 1 1 7.03 3.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path>
+                </svg>
+                <span id="settingsLabel">Settings</span>
+              </summary>
+              <div class="settings-panel" role="group" aria-label="Settings">
+                <div class="select-field">
+                  <label id="languageLabel" for="language">Language</label>
+                  <select id="language" aria-label="Language">
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="zh">中文</option>
+                  </select>
+                </div>
+                <div class="select-field keyboard-sound-field">
+                  <label id="keyboardSoundLabel" for="keyboardSound">Keyboard sound</label>
+                  <select id="keyboardSound" aria-label="Keyboard sound">
+                    <option value="none">No sound</option>
+                    <option value="alpaca">Alpaca</option>
+                    <option value="ios">iOS</option>
+                    <option value="logitech-g915-tkl-brown">Logitech G915 TKL Brown</option>
+                  </select>
+                </div>
+                <div class="range-field">
+                  <div class="range-label-row">
+                    <label id="keyboardSoundVolumeLabel" for="keyboardSoundVolume">Sound volume</label>
+                    <span id="keyboardSoundVolumeValue">25%</span>
+                  </div>
+                  <input id="keyboardSoundVolume" type="range" min="0" max="100" step="1" value="25" aria-label="Sound volume" />
+                </div>
+              </div>
+            </details>
             <button id="themeToggle" class="icon-button" type="button" title="Dark mode" aria-label="Dark mode">
               <svg class="icon-svg theme-icon theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M20.9 13.1A8.6 8.6 0 0 1 10.9 3.1a7.8 7.8 0 1 0 10 10Z"></path>
@@ -98,7 +119,7 @@
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </main>
 
-    <script src="/static/keyboardSounds.js?v=20260525-1" defer></script>
-    <script src="/static/app.js?v=20260525-5" defer></script>
+    <script src="/static/keyboardSounds.js?v=20260525-3" defer></script>
+    <script src="/static/app.js?v=20260525-7" defer></script>
   </body>
 </html>

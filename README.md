@@ -23,11 +23,13 @@ It was built for `wxw.moe`, but the backend uses the Mastodon API and can be con
 - Title mode selector:
   - **Title in post** publishes the title as the first line.
   - **Title as content warning** sends the title as Mastodon's CW/spoiler text.
+- Settings menu for interface/post language and keyboard sound preferences.
 - Interface and post language selector for English, Spanish, and Chinese.
 - Optional local keyboard sound profiles powered by bundled assets:
   - Alpaca
   - iOS
   - Logitech G915 TKL Brown
+- Persistent keyboard sound volume control.
 - Light and dark cozy themes.
 - Publish button plus `Ctrl+Enter` / `Cmd+Enter`.
 - Systemd service example for automatic startup after reboot.

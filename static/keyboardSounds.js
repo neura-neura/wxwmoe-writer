@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "keyboardSoundProfile";
+  var PROFILE_STORAGE_KEY = "keyboardSoundProfile";
+  var VOLUME_STORAGE_KEY = "keyboardSoundVolume";
   var MODIFIER_KEYS = {
     Shift: true,
     Control: true,
@@ -10,6 +11,16 @@
     CapsLock: true
   };
   var THROTTLE_MS = 32;
+  var TEXT_INPUT_TYPES = {
+    "": true,
+    text: true,
+    search: true,
+    url: true,
+    tel: true,
+    email: true,
+    password: true,
+    number: true
+  };
 
   var keyboardSoundProfiles = {
     none: null,
@@ -111,16 +122,19 @@
   };
 
   var activeProfileId = readStoredProfile();
+  var volumeOverride = readStoredVolume();
   var audioContext = null;
   var bufferCache = {};
   var loadingCache = {};
   var lastPlayedAt = {};
   var initialized = false;
+  var volumeControl = null;
+  var onVolumeChange = null;
 
   function readStoredProfile() {
     var value;
     try {
-      value = window.localStorage.getItem(STORAGE_KEY);
+      value = window.localStorage.getItem(PROFILE_STORAGE_KEY);
     } catch (error) {
       value = null;
     }
@@ -129,11 +143,73 @@
 
   function writeStoredProfile(profileId) {
     try {
-      window.localStorage.setItem(STORAGE_KEY, profileId);
+      window.localStorage.setItem(PROFILE_STORAGE_KEY, profileId);
     } catch (error) {
       return false;
     }
     return true;
+  }
+
+  function clampVolume(value) {
+    var number = Number(value);
+    if (!isFinite(number)) return 0;
+    if (number < 0) return 0;
+    if (number > 1) return 1;
+    return number;
+  }
+
+  function readStoredVolume() {
+    var value;
+    var number;
+    try {
+      value = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+    } catch (error) {
+      value = null;
+    }
+    if (value === null || value === "") return null;
+    number = Number(value);
+    if (!isFinite(number)) return null;
+    if (number > 1 && number <= 100) number = number / 100;
+    return clampVolume(number);
+  }
+
+  function writeStoredVolume(value) {
+    try {
+      window.localStorage.setItem(VOLUME_STORAGE_KEY, String(clampVolume(value)));
+    } catch (error) {
+      return false;
+    }
+    return true;
+  }
+
+  function getProfileDefaultVolume(profileId) {
+    var profile = keyboardSoundProfiles[profileId || activeProfileId];
+    if (!profile || typeof profile.volume !== "number") return 0;
+    return clampVolume(profile.volume);
+  }
+
+  function getVolume() {
+    if (volumeOverride !== null) return volumeOverride;
+    return getProfileDefaultVolume(activeProfileId);
+  }
+
+  function notifyVolumeChange() {
+    if (typeof onVolumeChange === "function") {
+      onVolumeChange(getVolume());
+    }
+  }
+
+  function syncVolumeControl() {
+    if (volumeControl) {
+      volumeControl.value = String(Math.round(getVolume() * 100));
+    }
+    notifyVolumeChange();
+  }
+
+  function setVolume(value) {
+    volumeOverride = clampVolume(value);
+    writeStoredVolume(volumeOverride);
+    syncVolumeControl();
   }
 
   function getAudioContext() {
@@ -220,7 +296,7 @@
     var node = target;
     while (node && node !== document) {
       if (node.tagName === "TEXTAREA") return true;
-      if (node.tagName === "INPUT") return true;
+      if (node.tagName === "INPUT") return Boolean(TEXT_INPUT_TYPES[(node.type || "").toLowerCase()]);
       if (node.isContentEditable) return true;
       node = node.parentNode;
     }
@@ -303,7 +379,7 @@
     file = pickRandom(list);
     url = profile.basePath + file;
     loadBuffer(url).then(function (buffer) {
-      playBuffer(buffer, profile.volume);
+      playBuffer(buffer, getVolume());
     });
   }
 
@@ -311,20 +387,33 @@
     activeProfileId = keyboardSoundProfiles.hasOwnProperty(profileId) ? profileId : "none";
     writeStoredProfile(activeProfileId);
     unlockAudioContext();
+    syncVolumeControl();
   }
 
   function getProfile() {
     return activeProfileId;
   }
 
-  function init(selectElement) {
+  function init(selectElement, volumeElement, volumeChangeCallback) {
     if (initialized) return;
     initialized = true;
+    volumeControl = volumeElement || null;
+    onVolumeChange = volumeChangeCallback || null;
     if (selectElement) {
       selectElement.value = activeProfileId;
       selectElement.addEventListener("change", function () {
         setProfile(selectElement.value);
       });
+    }
+    if (volumeControl) {
+      syncVolumeControl();
+      volumeControl.addEventListener("input", function () {
+        unlockAudioContext();
+        setVolume(Number(volumeControl.value) / 100);
+      });
+      volumeControl.addEventListener("change", unlockAudioContext);
+    } else {
+      notifyVolumeChange();
     }
     document.addEventListener("keydown", function (event) {
       unlockAudioContext();
@@ -342,6 +431,9 @@
     init: init,
     setProfile: setProfile,
     getProfile: getProfile,
+    setVolume: setVolume,
+    getVolume: getVolume,
+    getProfileDefaultVolume: getProfileDefaultVolume,
     playKeyboardSound: playKeyboardSound,
     getKeyCategory: getKeyCategory
   };
