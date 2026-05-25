@@ -1,0 +1,30 @@
+[Unit]
+Description=wxw.moe Diario
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wxwdiary
+Group=wxwdiary
+WorkingDirectory=/opt/wxwmoe-writing
+Environment=WXW_INSTANCE=https://wxw.moe
+Environment="WXW_APP_NAME=wxwmoe writer"
+Environment=WXW_APP_WEBSITE=https://github.com/neura-neura/wxwmoe-writer
+# Optional but recommended for stable OAuth callback registration:
+# Environment=WXW_BASE_URL=http://your-lan-ip:18080
+# Environment=WXW_BASE_URLS=http://your-lan-ip:18080,http://your-vpn-ip:18080
+Environment=WXW_APP_HOST=0.0.0.0
+Environment=WXW_APP_PORT=18080
+Environment=WXW_DATA_DIR=/opt/wxwmoe-writing/data
+ExecStart=/usr/bin/python3 /opt/wxwmoe-writing/server.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/wxwmoe-writing/data
+
+[Install]
+WantedBy=multi-user.target
