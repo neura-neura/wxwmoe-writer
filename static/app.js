@@ -15,6 +15,11 @@ var els = {
   keyboardSoundVolume: document.querySelector("#keyboardSoundVolume"),
   keyboardSoundVolumeLabel: document.querySelector("#keyboardSoundVolumeLabel"),
   keyboardSoundVolumeValue: document.querySelector("#keyboardSoundVolumeValue"),
+  layoutSettingsLabel: document.querySelector("#layoutSettingsLabel"),
+  pinHeader: document.querySelector("#pinHeader"),
+  pinHeaderLabel: document.querySelector("#pinHeaderLabel"),
+  pinFooter: document.querySelector("#pinFooter"),
+  pinFooterLabel: document.querySelector("#pinFooterLabel"),
   translationSettingsLabel: document.querySelector("#translationSettingsLabel"),
   translateSource: document.querySelector("#translateSource"),
   translateSourceLabel: document.querySelector("#translateSourceLabel"),
@@ -42,7 +47,9 @@ var defaultPrefs = {
   visibility: "unlisted",
   titleMode: "heading",
   language: "en",
-  theme: "light"
+  theme: "light",
+  pinHeader: false,
+  pinFooter: false
 };
 var defaultTranslationPrefs = {
   source: "auto",
@@ -61,6 +68,9 @@ var i18n = {
     language: "Language",
     keyboardSound: "Keyboard sound",
     soundVolume: "Sound volume",
+    layout: "Layout",
+    pinHeader: "Pin header while scrolling",
+    pinFooter: "Pin footer while scrolling",
     translation: "Translation",
     translateFrom: "From",
     translateTo: "To",
@@ -125,6 +135,9 @@ var i18n = {
     language: "Idioma",
     keyboardSound: "Sonido de teclado",
     soundVolume: "Volumen del sonido",
+    layout: "Disposición",
+    pinHeader: "Fijar encabezado al hacer scroll",
+    pinFooter: "Fijar barra inferior al hacer scroll",
     translation: "Traducción",
     translateFrom: "Origen",
     translateTo: "Destino",
@@ -189,6 +202,9 @@ var i18n = {
     language: "语言",
     keyboardSound: "键盘声音",
     soundVolume: "声音音量",
+    layout: "布局",
+    pinHeader: "滚动时固定页眉",
+    pinFooter: "滚动时固定页脚",
     translation: "翻译",
     translateFrom: "源语言",
     translateTo: "目标语言",
@@ -294,7 +310,9 @@ function loadPreferences() {
       visibility: defaultPrefs.visibility,
       titleMode: defaultPrefs.titleMode,
       language: defaultPrefs.language,
-      theme: defaultPrefs.theme
+      theme: defaultPrefs.theme,
+      pinHeader: defaultPrefs.pinHeader,
+      pinFooter: defaultPrefs.pinFooter
     };
   }
 
@@ -308,7 +326,9 @@ function loadPreferences() {
     visibility: optionIsAllowed(parsed.visibility, ["public", "unlisted", "private", "direct"], defaultPrefs.visibility),
     titleMode: optionIsAllowed(parsed.titleMode, ["heading", "cw"], defaultPrefs.titleMode),
     language: optionIsAllowed(parsed.language, ["en", "es", "zh"], defaultPrefs.language),
-    theme: optionIsAllowed(parsed.theme, ["light", "dark"], defaultPrefs.theme)
+    theme: optionIsAllowed(parsed.theme, ["light", "dark"], defaultPrefs.theme),
+    pinHeader: typeof parsed.pinHeader === "boolean" ? parsed.pinHeader : defaultPrefs.pinHeader,
+    pinFooter: typeof parsed.pinFooter === "boolean" ? parsed.pinFooter : defaultPrefs.pinFooter
   };
 }
 
@@ -449,6 +469,8 @@ function applyPreferences() {
 
   document.documentElement.lang = prefs.language;
   document.documentElement.setAttribute("data-theme", prefs.theme);
+  document.documentElement.setAttribute("data-pin-header", prefs.pinHeader ? "true" : "false");
+  document.documentElement.setAttribute("data-pin-footer", prefs.pinFooter ? "true" : "false");
   document.title = text("documentTitle");
 
   els.visibility.value = prefs.visibility;
@@ -477,6 +499,11 @@ function applyPreferences() {
   els.keyboardSound.setAttribute("aria-label", text("keyboardSound"));
   els.keyboardSoundVolumeLabel.textContent = text("soundVolume");
   els.keyboardSoundVolume.setAttribute("aria-label", text("soundVolume"));
+  els.layoutSettingsLabel.textContent = text("layout");
+  els.pinHeaderLabel.textContent = text("pinHeader");
+  els.pinFooterLabel.textContent = text("pinFooter");
+  els.pinHeader.checked = prefs.pinHeader;
+  els.pinFooter.checked = prefs.pinFooter;
   els.translationSettingsLabel.textContent = text("translation");
   els.translateSourceLabel.textContent = text("translateFrom");
   els.translateTargetLabel.textContent = text("translateTo");
@@ -861,6 +888,12 @@ function bindEvents() {
   });
   els.language.addEventListener("change", function () {
     updatePreference("language", els.language.value);
+  });
+  els.pinHeader.addEventListener("change", function () {
+    updatePreference("pinHeader", els.pinHeader.checked);
+  });
+  els.pinFooter.addEventListener("change", function () {
+    updatePreference("pinFooter", els.pinFooter.checked);
   });
   els.translateSource.addEventListener("change", function () {
     updateTranslationPreference("source", els.translateSource.value);
