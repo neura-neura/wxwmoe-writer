@@ -9,7 +9,7 @@ A quiet, cozy, plain-text writing interface for publishing long-form posts to a 
 It was built for `wxw.moe`, but the backend uses the Mastodon API and can be configured for another instance.
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="wxwmoe writer screenshot" width="780">
+  <img src="assets/screenshot-full-footer.png" alt="wxwmoe writer screenshot" width="780">
 </p>
 
 ## Features
