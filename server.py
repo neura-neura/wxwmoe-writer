@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -21,7 +22,7 @@ from pathlib import Path
 APP_NAME = os.environ.get("WXW_APP_NAME", "wxwmoe writer")
 APP_WEBSITE = os.environ.get("WXW_APP_WEBSITE", "https://github.com/neura-neura/wxwmoe-writer").rstrip("/")
 DEFAULT_INSTANCE = "https://wxw.moe"
-DEFAULT_SCOPES = "read:accounts write:statuses"
+DEFAULT_SCOPES = "read:accounts write:statuses write:media"
 SESSION_COOKIE = "wxw_diary_session"
 STATE_COOKIE = "wxw_diary_oauth"
 SESSION_TTL = 60 * 60 * 24 * 90
@@ -157,7 +158,7 @@ def verify_signed_value(signed):
 
 
 def form_request(url, data, token=None):
-    encoded = urllib.parse.urlencode(data).encode("utf-8")
+    encoded = urllib.parse.urlencode(data, doseq=True).encode("utf-8")
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
@@ -198,6 +199,80 @@ def json_post_request(url, payload, headers=None):
     return json_request(req)
 
 
+def multipart_post(url, token, filename, content_type, content):
+    boundary = f"----wxwmoe-{secrets.token_hex(16)}"
+    body = b"\r\n".join(
+        [
+            f"--{boundary}".encode("ascii"),
+            f'Content-Disposition: form-data; name="file"; filename="{filename}"'.encode("ascii"),
+            f"Content-Type: {content_type}".encode("ascii"),
+            b"",
+            content,
+            f"--{boundary}--".encode("ascii"),
+            b"",
+        ]
+    )
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Accept": "application/json",
+            "User-Agent": f"{APP_NAME}/1.0",
+        },
+        method="POST",
+    )
+    return json_request(req)
+
+
+def decode_image_data_url(value):
+    if not isinstance(value, str) or not value.startswith("data:"):
+        raise ValueError("La portada no tiene un formato de imagen válido.")
+    header, separator, encoded = value.partition(",")
+    if separator != "," or ";base64" not in header.lower():
+        raise ValueError("La portada no tiene un formato de imagen válido.")
+    media_type = header[5:].split(";", 1)[0].lower()
+    extensions = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/gif": "gif",
+        "image/webp": "webp",
+    }
+    if media_type not in extensions:
+        raise ValueError("Mastodon solo admite portadas PNG, JPEG, GIF o WebP.")
+    try:
+        content = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError("La portada no tiene datos válidos.") from exc
+    if not content:
+        raise ValueError("La portada está vacía.")
+    if len(content) > 8 * 1024 * 1024:
+        raise ValueError("La portada supera el límite de 8 MB.")
+    return media_type, extensions[media_type], content
+
+
+def upload_media(token, filename, content_type, content):
+    try:
+        return multipart_post(
+            f"{INSTANCE_URL}/api/v2/media",
+            token,
+            filename,
+            content_type,
+            content,
+        )
+    except RuntimeError as exc:
+        if not (str(exc).startswith("404 ") or str(exc).startswith("405 ")):
+            raise
+        return multipart_post(
+            f"{INSTANCE_URL}/api/v1/media",
+            token,
+            filename,
+            content_type,
+            content,
+        )
+
+
 def bearer_get(path, token):
     req = urllib.request.Request(
         f"{INSTANCE_URL}{path}",
@@ -220,6 +295,7 @@ def register_oauth_app(redirect_uris=None):
         and app.get("website") == APP_WEBSITE
         and app.get("redirect_uris") == redirect_uris
         and app.get("instance") == INSTANCE_URL
+        and app.get("scopes") == SCOPES
     ):
         return app
 
@@ -237,6 +313,7 @@ def register_oauth_app(redirect_uris=None):
         "client_name": APP_NAME,
         "website": APP_WEBSITE,
         "redirect_uris": redirect_uris,
+        "scopes": SCOPES,
         "client_id": payload["client_id"],
         "client_secret": payload["client_secret"],
         "vapid_key": payload.get("vapid_key"),
@@ -310,9 +387,9 @@ def get_instance_limits():
         return {"max_characters": 20000, "title": "wxw.moe"}
 
 
-def read_body(handler):
+def read_body(handler, max_bytes=1024 * 1024):
     length = int(handler.headers.get("Content-Length", "0") or "0")
-    if length > 1024 * 1024:
+    if length > max_bytes:
         raise ValueError("La petición es demasiado grande.")
     return handler.rfile.read(length)
 
@@ -748,7 +825,7 @@ class AppHandler(BaseHTTPRequestHandler):
             self.send_error_json("Token CSRF inválido.", HTTPStatus.FORBIDDEN)
             return
 
-        raw = read_body(self)
+        raw = read_body(self, max_bytes=12 * 1024 * 1024)
         try:
             payload = json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError:
@@ -784,6 +861,28 @@ class AppHandler(BaseHTTPRequestHandler):
         }
         if spoiler_text:
             data["spoiler_text"] = spoiler_text
+
+        media_data_url = payload.get("media_data_url", "")
+        if media_data_url:
+            try:
+                media_type, extension, media_content = decode_image_data_url(media_data_url)
+                media = upload_media(
+                    session["access_token"],
+                    f"cover.{extension}",
+                    media_type,
+                    media_content,
+                )
+            except ValueError as exc:
+                self.send_error_json(str(exc), HTTPStatus.BAD_REQUEST)
+                return
+            except Exception as exc:
+                self.send_error_json(f"No se pudo adjuntar la portada: {exc}", HTTPStatus.BAD_GATEWAY)
+                return
+            media_id = media.get("id") if isinstance(media, dict) else None
+            if not media_id:
+                self.send_error_json("Mastodon no devolvió el identificador de la portada.", HTTPStatus.BAD_GATEWAY)
+                return
+            data["media_ids[]"] = [media_id]
 
         published = form_request(
             f"{INSTANCE_URL}/api/v1/statuses",

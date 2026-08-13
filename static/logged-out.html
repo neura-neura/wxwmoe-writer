@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Signed out - wxw.moe diary</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-11" />
+    <link rel="stylesheet" href="/static/app.css?v=20260812-49" />
   </head>
   <body>
     <main class="writer-shell logged-out-shell">
@@ -28,7 +28,13 @@
       }
       const language = copy[prefs.language] ? prefs.language : "en";
       document.documentElement.lang = language;
-      document.documentElement.dataset.theme = prefs.theme === "dark" ? "dark" : "light";
+      const themeId = "paper-bloom";
+      const systemColorMode = prefs.systemColorMode === true;
+      const colorMode = systemColorMode && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : (prefs.colorMode || (prefs.theme === "dark" ? "dark" : "light"));
+      document.documentElement.dataset.themeId = themeId;
+      document.documentElement.dataset.theme = colorMode === "dark" ? "dark" : "light";
       document.querySelector("#title").textContent = copy[language][0];
       document.querySelector("#copy").textContent = copy[language][1];
       document.querySelector("#login").textContent = copy[language][2];
